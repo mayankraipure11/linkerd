@@ -5,7 +5,7 @@ metadata:
 
 resources:
 - ../../../../linkerd/qa/base/s1
-# - secret_cluster-credentials.yaml
+- secret_cluster-credentials.yaml
 
 # patches:
 # - path: patch_linkerd-gateway.yaml
