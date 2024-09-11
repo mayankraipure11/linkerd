@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: linkerd-gateway
+  namespace: linkerd-multicluster
+spec:
+  loadBalancerIP: 130.214.144.95

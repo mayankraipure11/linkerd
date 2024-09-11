@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: kustomize
+
+resources:
+- ../../../../../base/linkerd
+# - apply_controlplane1_ha.yaml
+# - apply_link_a2_to_all.yaml
+# - apply_link_s1_to_all.yaml

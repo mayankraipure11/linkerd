@@ -1,0 +1,177 @@
+apiVersion: multicluster.linkerd.io/v1alpha1
+kind: Link
+metadata:
+  name: s1
+  namespace: linkerd-multicluster
+spec:
+  clusterCredentialsSecret: cluster-credentials-s1
+  gatewayAddress: ~
+  gatewayIdentity: linkerd-gateway.linkerd-multicluster.serviceaccount.identity.linkerd.cluster.local
+  gatewayPort: "4143"
+  probeSpec:
+    path: /ready
+    period: 3s
+    port: "4191"
+  remoteDiscoverySelector:
+    matchLabels:
+      mirror.linkerd.io/exported: remote-discovery
+  selector:
+    matchLabels:
+      mirror.linkerd.io/exported: "true"
+  targetClusterDomain: cluster.local
+  targetClusterLinkerdNamespace: linkerd
+  targetClusterName: s1
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-service-mirror-access-local-resources-s1
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+rules:
+- apiGroups: [""]
+  resources: ["endpoints", "services"]
+  verbs: ["list", "get", "watch", "create", "delete", "update"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["list", "get", "watch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-service-mirror-access-local-resources-s1
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: linkerd-service-mirror-access-local-resources-s1
+subjects:
+- kind: ServiceAccount
+  name: linkerd-service-mirror-s1
+  namespace: linkerd-multicluster
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-service-mirror-read-remote-creds-s1
+  namespace: linkerd-multicluster
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["cluster-credentials-s1"]
+    verbs: ["list", "get", "watch"]
+  - apiGroups: ["multicluster.linkerd.io"]
+    resources: ["links"]
+    verbs: ["list", "get", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "get", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-service-mirror-read-remote-creds-s1
+  namespace: linkerd-multicluster
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: linkerd-service-mirror-read-remote-creds-s1
+subjects:
+  - kind: ServiceAccount
+    name: linkerd-service-mirror-s1
+    namespace: linkerd-multicluster
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: linkerd-service-mirror-s1
+  namespace: linkerd-multicluster
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    linkerd.io/extension: multicluster
+    component: service-mirror
+    mirror.linkerd.io/cluster-name: s1
+  name: linkerd-service-mirror-s1
+  namespace: linkerd-multicluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: linkerd-service-mirror
+      mirror.linkerd.io/cluster-name: s1
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        config.alpha.linkerd.io/proxy-wait-before-exit-seconds: "0"
+      labels:
+        linkerd.io/extension: multicluster
+        component: linkerd-service-mirror
+        mirror.linkerd.io/cluster-name: s1
+    spec:
+      containers:
+      - args:
+        - service-mirror
+        - -log-level=info
+        - -log-format=plain
+        - -event-requeue-limit=3
+        - -namespace=linkerd-multicluster
+        - -enable-headless-services
+        - -enable-pprof=false
+        - s1
+        image: cr.l5d.io/linkerd/controller:stable-2.14.10
+        name: service-mirror
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 2103
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 9999
+          name: admin-http
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: linkerd-service-mirror-s1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: probe-gateway-s1
+  namespace: linkerd-multicluster
+  labels:
+    linkerd.io/extension: multicluster
+    mirror.linkerd.io/mirrored-gateway: "true"
+    mirror.linkerd.io/cluster-name: s1
+spec:
+  ports:
+  - name: mc-probe
+    port: 4191
+    protocol: TCP
+---

@@ -1,0 +1,7 @@
+apiVersion: multicluster.linkerd.io/v1alpha1
+kind: Link
+metadata:
+  name: s1
+  namespace: linkerd-multicluster
+spec:
+  gatewayAddress: 155.56.129.231
