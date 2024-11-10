@@ -6,5 +6,5 @@ metadata:
 resources:
 - ../../../../../base/linkerd
 # - apply_controlplane1_ha.yaml
-# - apply_link_a2_to_all.yaml
-# - apply_link_s1_to_all.yaml
+- apply_link_a2_to_all.yaml
+- apply_link_s1_to_all.yaml
